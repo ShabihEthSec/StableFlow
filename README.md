@@ -2,68 +2,127 @@
 
 **Status:** Active Development (Hackathon Project)
 
-StableFlow is an intent-based, cross-chain stablecoin vault built around **Uniswap v4 hooks**.  
-The project is being developed in clearly defined phases, with the core hook logic implemented first.
+StableFlow is an **intent-based, cross-chain stablecoin vault** built around **Uniswap v4 hooks**.
+
+The project is developed in clearly defined phases, starting with the **core hook logic**, which is the most safety-critical and non-replaceable component of the system.
 
 ---
 
 ## ✅ Current Progress
 
-**Phase 2 — Uniswap v4 Hook (COMPLETED)**
+### **Phase 3 — Uniswap v4 Hook with Heuristic Hardening (COMPLETED)**
 
-The following functionality is implemented and tested:
+The StableFlow Uniswap v4 hook has been fully implemented and tested with **rate-limited, heuristic-based imbalance detection** and **dynamic fee control**.
 
-- Dynamic fee adjustment based on on-chain swap pressure  
-- Imbalance detection using `BalanceDelta`  
-- Rate-limited rebalancing intent emission (cooldown enforced)  
-- Strict Uniswap v4 hook safety (no external calls, deterministic execution)
+### Implemented & Verified
 
-📍 Core file:
+* Liquidity imbalance detection using **cumulative swap flow**
+* Time-windowed flow aggregation (`FLOW_WINDOW`)
+* Hard imbalance thresholds and caps
+* Cooldown-enforced intent emission
+* Dynamic fee escalation during imbalance periods
+* Per-pool state isolation
+* Strict Uniswap v4 hook safety:
+
+  * no external calls
+  * deterministic execution
+  * synchronous logic only
+
+The hook **observes pool behavior**, adjusts swap fees, and emits **on-chain rebalancing intents**.
+It does **not** execute rebalancing, bridging, or accounting.
+
+📍 **Core contract**
+
 ```
-src/hooks/StableFlowHook.sol
+contracts/hooks/StableFlowHook.sol
 ```
-📍 Tests:
+
+📍 **Tests**
+
+```
+test/hooks/StableFlowHook.t.sol
+```
+
+The test suite validates:
+
+* imbalance accumulation and decay
+* cooldown enforcement
+* intent emission correctness
+* dynamic fee application
+* safety under repeated swaps
 
 ---
 
-## 🔜 Next Phase (In Progress)
+## 🔜 Next Phase
 
-**Phase 3 — Hook Hardening**
-- TWAP-based manipulation resistance
-- Fee caps and smoothing
-- Improved normalization of imbalance signals
+### **Phase 4 — Oracle & TWAP Hardening (Planned)**
+
+The next phase will strengthen manipulation resistance by incorporating price-based signals:
+
+* TWAP-based normalization of imbalance signals
+* Tick-aware price checks
+* Tighter fee smoothing based on time-weighted price movement
+
+This phase will **augment**, not replace, the existing flow-based logic.
 
 ---
 
 ## ⚠️ Work in Progress
 
 This repository is under active development:
-- Interfaces may change
-- Later phases (executor, cross-chain routing, accounting) are not yet wired
-- The focus is currently on building a correct and safe protocol primitive
 
-This is **not** a production deployment — it is a hackathon project focused on correctness, architecture, and extensibility.
+* Interfaces may evolve as later phases are integrated
+* Off-chain executors, cross-chain routing, and accounting layers are **not yet wired**
+* The current focus is correctness, safety, and architectural clarity
+
+This is **not a production deployment**.
+It is a hackathon project focused on building a **sound protocol primitive first**.
 
 ---
 
 ## 🧠 High-Level Architecture
 
-StableFlow separates:
-- **On-chain intent generation** (Uniswap v4 hooks)
-- **Off-chain execution** (planned)
-- **Cross-chain routing and accounting** (planned)
+StableFlow follows a strict separation of responsibilities:
 
-Full architecture details will be added as subsequent phases are completed.
+* **On-chain intent generation**
+
+  * Uniswap v4 hook observes swaps
+  * Adjusts fees
+  * Emits rebalancing intents
+
+* **Off-chain execution** *(planned)*
+
+  * Permissionless executors consume intents
+  * Decide whether execution is profitable
+  * Perform cross-chain actions
+
+* **Cross-chain routing & accounting** *(planned)*
+
+  * LI.FI for execution
+  * Arc for unified accounting
+
+This architecture ensures:
+
+* hook safety
+* composability
+* permissionless execution
+* minimal trust assumptions
 
 ---
 
 ## 📌 Note for Reviewers / Judges
 
 If you are reviewing this repository:
-- Start with `StableFlowHook.sol`
-- Review Phase 2 hook logic and tests
-- Phase 3 and beyond are intentionally staged
+
+1. Start with `StableFlowHook.sol`
+2. Review imbalance detection, cooldown logic, and fee control
+3. Examine Foundry tests validating safety and correctness
+
+Later phases are **intentionally staged** to avoid unsafe complexity inside the hook.
 
 ---
 
-*The flow will stabilize — one hook at a time.*
+*The flow stabilizes — one safe hook at a time.*
+
+---
+
