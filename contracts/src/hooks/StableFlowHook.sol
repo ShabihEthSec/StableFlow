@@ -55,12 +55,7 @@ contract StableFlowHook is BaseHook {
     mapping(PoolId => uint256) public lastFlowUpdate;
 
 
-    // /// @notice Track recent price snapshot per pool (Phase 3)
-    // struct PriceSnapshot {
-    //     int24 tick;
-    //     uint256 timestamp;
-    // }
-    // mapping(PoolId => PriceSnapshot) public priceSnapshots;
+    
 
 
 
