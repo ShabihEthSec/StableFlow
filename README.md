@@ -120,9 +120,4 @@ If you are reviewing this repository:
 
 Later phases are **intentionally staged** to avoid unsafe complexity inside the hook.
 
----
-
-*The flow stabilizes — one safe hook at a time.*
-
----
 
