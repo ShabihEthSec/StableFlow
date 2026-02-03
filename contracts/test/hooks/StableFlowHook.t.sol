@@ -43,8 +43,6 @@ contract StableFlowHookHarness is StableFlowHook {
 contract StableFlowHookTest is Test {
     using PoolIdLibrary for PoolKey;
     using BalanceDeltaLibrary for BalanceDelta;
-    // using SafeCast for int128;
-    // using SafeCast for uint128;
     using CurrencyLibrary for Currency;
     
     StableFlowHookHarness hook;
@@ -72,6 +70,9 @@ contract StableFlowHookTest is Test {
         });
         
     }
+    /*//////////////////////////////////////////////////////////////
+                            TESTS
+    //////////////////////////////////////////////////////////////*/
 
     function test_getHookPermissions() public {
         Hooks.Permissions memory perms = hook.getHookPermissions();
@@ -83,7 +84,8 @@ contract StableFlowHookTest is Test {
         assertFalse(perms.afterAddLiquidity, "afterAddLiquidity should be disabled");
     }
 
-     function test_afterSwap_noIntentBelowThreshold() public {
+    /// Small swap → no intent emitted
+    function test_afterSwap_noIntentBelowThreshold() public {
         BalanceDelta smallDelta = toBalanceDelta(
             int128(-1e16),
             int128(1e16)
@@ -108,9 +110,8 @@ contract StableFlowHookTest is Test {
 
     /// Large swap → intent emitted
     function test_afterSwap_emitsIntentAboveThreshold() public {
-        BalanceDelta largeDelta = toBalanceDelta(
-            int128(-1e18),
-            int128(1e18)
+        BalanceDelta largeDelta = BalanceDelta.wrap(
+            (int256(-1e18) << 128) | int256(uint256(uint128(1e18)))
         );
 
         vm.recordLogs();
@@ -141,11 +142,10 @@ contract StableFlowHookTest is Test {
         assertTrue(found);
     }
 
-    /// Cooldown prevents spam
+    /// Cooldown blocks second intent
     function test_afterSwap_cooldownBlocksSecondIntent() public {
-        BalanceDelta largeDelta = toBalanceDelta(
-            int128(-1e18),
-            int128(1e18)
+        BalanceDelta largeDelta = BalanceDelta.wrap(
+            (int256(-1e18) << 128) | int256(uint256(uint128(1e18)))
         );
 
         // ---- First swap: Should emit ----
@@ -161,21 +161,8 @@ contract StableFlowHookTest is Test {
             largeDelta,
             bytes("")
         );
-        Vm.Log[] memory logs1 = vm.getRecordedLogs();
-        uint256 count1;
-        for (uint256 i = 0; i < logs1.length; i++) {
-            if (
-                logs1[i].topics[0]
-                    == keccak256("RebalanceIntent(bytes32,uint256)")
-            ) {
-                count1++;
-            }
-        }
-        assertEq(count1, 1, "first intent should emit");
 
-        // ---- Second swap: SHOULD NOT emit  ----
-         vm.recordLogs();
-        
+         // Second swap in same block → blocked
         hook.callAfterSwap(
             poolKey,
             SwapParams({
@@ -187,26 +174,25 @@ contract StableFlowHookTest is Test {
             bytes("")
         );
 
-        Vm.Log[] memory logs2 = vm.getRecordedLogs();
-        uint256 count2;
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        uint256 count;
 
-        for (uint256 i = 0; i < logs2.length; i++) {
+        for (uint256 i = 0; i < logs.length; i++) {
             if (
-                logs2[i].topics[0]
+                logs[i].topics[0]
                     == keccak256("RebalanceIntent(bytes32,uint256)")
             ) {
-                count2++;
+                count++;
             }
         }
 
-        assertEq(count2, 0, "cooldown should block second intent");
+        assertEq(count, 1);
     }
 
     /// Fee increases after imbalance
     function test_beforeSwap_appliesDynamicFee() public {
-         BalanceDelta largeDelta = toBalanceDelta(
-            int128(-1e16),
-            int128(1e16)
+         BalanceDelta largeDelta = BalanceDelta.wrap(
+            (int256(-1e18) << 128) | int256(uint256(uint128(1e18)))
         );
 
         hook.callAfterSwap(
@@ -231,34 +217,5 @@ contract StableFlowHookTest is Test {
         );
 
         assertEq(fee, hook.IMBALANCED_FEE());
-    }
-
-
-    // function test_afterSwap_emitsRebalanceIntent() public {
-    //     PoolKey memory key;
-
-    //     vm.expectEmit(true, false, false, true);
-    //     emit StableFlowHook.RebalanceIntent(key.toId(), 500);
-
-    //     hook.callAfterSwap(
-    //         key,
-    //         SwapParams({
-    //             zeroForOne: true,
-    //             amountSpecified: 1000,
-    //             sqrtPriceLimitX96: 0
-    //         }),
-    //         new bytes(0)
-    //     );
-    // }
-
-    // -------------------------------- HELPER FUNCTIONS --------------------------------
-    function _makeDelta(int128 amount0, int128 amount1)
-        internal
-        pure
-        returns (BalanceDelta)
-    {
-        return BalanceDelta.wrap(
-            (int256(amount0) << 128) | int256(uint256(uint128(amount1)))
-        );
-    }
+    }    
 }
