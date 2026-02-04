@@ -22,9 +22,9 @@ contract BaseScript is Script, Deployers {
     /////////////////////////////////////
     // --- Configure These ---
     /////////////////////////////////////
-    IERC20 internal constant token0 = IERC20(0x0165878A594ca255338adfa4d48449f69242Eb8F);
-    IERC20 internal constant token1 = IERC20(0xa513E6E4b8f2a923D98304ec87F64353C4D5C853);
-    IHooks constant hookContract = IHooks(address(0));
+    IERC20 internal constant token0 = IERC20(0xdd13E55209Fd76AfE204dBda4007C227904f0a81); // WETH Sepolia
+    IERC20 internal constant token1 = IERC20(0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238); // USDC Sepolia
+    IHooks constant hookContract = IHooks(address(0xeC1a67DeDA1574520C940736A1Ef31d8241E80C0)); // Deployed StableFlowHook on Sepolia
     /////////////////////////////////////
 
     Currency immutable currency0;

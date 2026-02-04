@@ -9,6 +9,11 @@ import {TickMath} from "@uniswap/v4-core/src/libraries/TickMath.sol";
 import {BaseScript} from "./base/BaseScript.sol";
 import {LiquidityHelpers} from "./base/LiquidityHelpers.sol";
 
+interface IWETH {
+    function deposit() external payable;
+    function approve(address spender, uint256 amount) external returns (bool);
+}
+
 contract CreatePoolAndAddLiquidityScript is BaseScript, LiquidityHelpers {
     using CurrencyLibrary for Currency;
 
@@ -21,8 +26,8 @@ contract CreatePoolAndAddLiquidityScript is BaseScript, LiquidityHelpers {
     uint160 startingPrice = 2 ** 96; // Starting price, sqrtPriceX96; floor(sqrt(1) * 2^96)
 
     // --- liquidity position configuration --- //
-    uint256 public token0Amount = 100e18;
-    uint256 public token1Amount = 100e18;
+    uint256 public token0Amount = 1e15; // 100e18 before
+    uint256 public token1Amount = 1e6;  // 100e18 before
 
     // range of the position, must be a multiple of tickSpacing
     int24 tickLower;
@@ -78,6 +83,11 @@ contract CreatePoolAndAddLiquidityScript is BaseScript, LiquidityHelpers {
 
         vm.startBroadcast();
         tokenApprovals();
+        // If token0 is WETH, wrap ETH first
+        if (address(token0) == 0xdd13E55209Fd76AfE204dBda4007C227904f0a81) {
+            IWETH(address(token0)).deposit{value: token0Amount}();
+        }
+        
 
         // Multicall to atomically create pool & add liquidity
         positionManager.multicall{value: valueToPass}(params);

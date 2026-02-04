@@ -3,6 +3,7 @@ pragma solidity ^0.8.26;
 
 import {Hooks} from "@uniswap/v4-core/src/libraries/Hooks.sol";
 import {HookMiner} from "@uniswap/v4-periphery/src/utils/HookMiner.sol";
+import {console2} from "@uniswap/v4-periphery/lib/v4-core/lib/openzeppelin-contracts/lib/forge-std/src/console2.sol";
 
 import {BaseScript} from "./base/BaseScript.sol";
 
@@ -13,8 +14,7 @@ contract DeployHookScript is BaseScript {
     function run() public {
         // hook contracts must have specific flags encoded in the address
         uint160 flags = uint160(
-            Hooks.BEFORE_SWAP_FLAG | Hooks.AFTER_SWAP_FLAG | Hooks.BEFORE_ADD_LIQUIDITY_FLAG
-                | Hooks.BEFORE_REMOVE_LIQUIDITY_FLAG
+            Hooks.BEFORE_SWAP_FLAG | Hooks.AFTER_SWAP_FLAG
         );
 
         // Mine a salt that will produce a hook address with the correct flags
@@ -25,6 +25,7 @@ contract DeployHookScript is BaseScript {
         // Deploy the hook using CREATE2
         vm.startBroadcast();
         StableFlowHook stableFlowHook = new StableFlowHook{salt: salt}(poolManager);
+        console2.log("StableFlowHook deployed at:", address(stableFlowHook));
         vm.stopBroadcast();
 
         require(address(stableFlowHook) == hookAddress, "DeployHookScript: Hook Address Mismatch");

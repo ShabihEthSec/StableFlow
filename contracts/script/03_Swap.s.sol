@@ -2,7 +2,6 @@
 pragma solidity ^0.8.26;
 
 import {PoolKey} from "@uniswap/v4-core/src/types/PoolKey.sol";
-
 import {BaseScript} from "./base/BaseScript.sol";
 
 contract SwapScript is BaseScript {
@@ -12,25 +11,25 @@ contract SwapScript is BaseScript {
             currency1: currency1,
             fee: 3000,
             tickSpacing: 60,
-            hooks: hookContract // This must match the pool
+            hooks: hookContract
         });
-        bytes memory hookData = new bytes(0);
+
+        bytes memory hookData = "";
 
         vm.startBroadcast();
 
-        // We'll approve both, just for testing.
+        // Approve ONLY the input token
         token1.approve(address(swapRouter), type(uint256).max);
-        token0.approve(address(swapRouter), type(uint256).max);
 
-        // Execute swap
+        // Small swap — enough to trigger flow logic safely
         swapRouter.swapExactTokensForTokens({
-            amountIn: 1e18,
-            amountOutMin: 0, // Very bad, but we want to allow for unlimited price impact
+            amountIn: 1e6,        //  1 USDC (6 decimals)
+            amountOutMin: 0,
             zeroForOne: true,
             poolKey: poolKey,
             hookData: hookData,
-            receiver: address(this),
-            deadline: block.timestamp + 30
+            receiver: msg.sender, //  my wallet
+            deadline: block.timestamp + 120
         });
 
         vm.stopBroadcast();

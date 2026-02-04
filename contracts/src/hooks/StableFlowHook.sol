@@ -109,7 +109,7 @@ contract StableFlowHook is BaseHook {
     {
          PoolId poolId = key.toId();
         
-         uint24 fee = 0;
+         uint24 fee = key.fee;
 
             
         // Apply higher fee if pool is currently imbalanced
