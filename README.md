@@ -45,6 +45,43 @@ test/hooks/StableFlowHook.t.sol
 
 ---
 
+### On-chain Verification (Sepolia)
+```
+StableFlowHook:
+0xeC1a67DeDA1574520C940736A1Ef31d8241E80C0
+```
+#### Verfied PoolId(sepolia)
+0xf8591a339cba73a024246d7b1399e02d8b118826fc9861555fb1ea243691c95e
+
+The hook has been deployed and exercised on Sepolia via a live Uniswap v4 pool.
+
+Execution characteristics:
+
+* Hook functions are invoked via `delegatecall` from `PoolManager`
+* As expected for Uniswap v4, hooks do **not** appear as standalone transactions
+* Correct execution is verified via:
+  * deterministic storage updates keyed by `poolId`
+  * event emission during swap execution
+  * post-swap state inspection using `cast call`
+
+Example (Sepolia):
+
+```bash
+cast call 0xeC1a67DeDA1574520C940736A1Ef31d8241E80C0 "lastFlowUpdate(bytes32)(uint256)" 0xf8591a339cba73a024246d7b1399e02d8b118826fc9861555fb1ea243691c95e
+```
+This confirms successful hook execution after swaps.
+---
+
+
+
+### Network
+
+Current testing and validation has been performed on:
+
+* Sepolia testnet
+* Uniswap v4 PoolManager (official deployment on Sepolia)
+
+
 ## Why There Is No TWAP or Oracle Logic
 
 Uniswap v4 does not expose a standalone oracle contract like Uniswap v3, and hooks are not designed to compute or depend on price-based TWAPs.
@@ -138,6 +175,9 @@ If you are reviewing this repository:
 3. Review thresholding and cooldown enforcement
 4. Review the minimal ERC-4626 vault
 5. Note that execution layers are intentionally staged
+6. Note that Uniswap v4 hooks execute via `delegatecall` and therefore do not
+   appear as direct transactions on the hook address. Execution is proven
+   through state changes and emitted events.
 
 Each phase is built to be independently correct before moving forward.
 
