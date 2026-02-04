@@ -218,4 +218,35 @@ contract StableFlowHookTest is Test {
 
         assertEq(fee, hook.IMBALANCED_FEE());
     }    
+
+    function test_flowAccumulatesAcrossSwaps() public {
+        BalanceDelta delta = toBalanceDelta(
+            int128(-3e17),
+            int128(3e17)
+        );
+
+        hook.callAfterSwap(
+            poolKey,
+            SwapParams({
+                zeroForOne: true,
+                amountSpecified: -3e17,
+                sqrtPriceLimitX96: 0
+            }),
+            delta,
+            bytes("")
+        );
+        hook.callAfterSwap(
+            poolKey,
+            SwapParams({
+                zeroForOne: true,
+                amountSpecified: -3e17,
+                sqrtPriceLimitX96: 0
+            }),
+            delta,
+            bytes("")
+        );
+
+        uint256 imbalance = hook.lastImbalanceBps(poolKey.toId());
+        assertGt(imbalance, hook.IMBALANCE_THRESHOLD_BPS());
+    }
 }

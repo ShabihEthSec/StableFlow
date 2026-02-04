@@ -54,10 +54,12 @@ contract StableFlowHook is BaseHook {
     mapping(PoolId => int256) public cumulativeFlow;
     mapping(PoolId => uint256) public lastFlowUpdate;
 
+    mapping(PoolId => uint256) public lastImbalanceBps;
 
+    /*//////////////////////////////////////////////////////////////
+                        CONSTRUCTOR
+    //////////////////////////////////////////////////////////////*/
     
-
-
 
     constructor(IPoolManager _poolManager) BaseHook(_poolManager) {}
 
@@ -109,11 +111,9 @@ contract StableFlowHook is BaseHook {
         
          uint24 fee = 0;
 
-        // If pool recently triggered imbalance, apply higher fee
-        if (
-            block.timestamp <
-            lastRebalanceAt[poolId] + REBALANCE_COOLDOWN
-        ) {
+            
+        // Apply higher fee if pool is currently imbalanced
+        if (lastImbalanceBps[poolId] >= IMBALANCE_THRESHOLD_BPS) {
             fee = IMBALANCED_FEE;
         }
 
@@ -146,10 +146,11 @@ contract StableFlowHook is BaseHook {
         int128 amount0 = delta.amount0();
         int128 amount1 = delta.amount1();
 
-        
+        // One side is always negative (token in), one positive (token out)
+        // We track the absolute flow of the token being sold
         int256 flow = amount0 < 0
-            ? int256(amount0)
-            : int256(amount1);
+        ? -int256(amount0)   
+        : -int256(amount1); 
 
         if (block.timestamp > lastFlowUpdate[poolId] + FLOW_WINDOW) {
             cumulativeFlow[poolId] = flow;
@@ -186,6 +187,8 @@ contract StableFlowHook is BaseHook {
             ) {
             return (BaseHook.afterSwap.selector, 0);
         }
+
+        lastImbalanceBps[poolId] = imbalanceBps;
 
         // Emit intent
         lastRebalanceAt[poolId] = block.timestamp;

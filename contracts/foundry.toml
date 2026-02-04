@@ -12,3 +12,6 @@ via_ir = false
 [lint]
 exclude_lints = ["screaming-snake-case-immutable", "screaming-snake-case-const"]
 lint_on_build = false
+
+remappings = [
+  "@openzeppelin/=lib/openzeppelin-contracts/"]
