@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
+import "forge-std/console2.sol";
+
 import {PoolKey} from "@uniswap/v4-core/src/types/PoolKey.sol";
+import {PoolId, PoolIdLibrary} from "@uniswap/v4-core/src/types/PoolId.sol";
 import {CurrencyLibrary, Currency} from "@uniswap/v4-core/src/types/Currency.sol";
 import {LiquidityAmounts} from "@uniswap/v4-core/test/utils/LiquidityAmounts.sol";
 import {TickMath} from "@uniswap/v4-core/src/libraries/TickMath.sol";
@@ -9,30 +12,20 @@ import {TickMath} from "@uniswap/v4-core/src/libraries/TickMath.sol";
 import {BaseScript} from "./base/BaseScript.sol";
 import {LiquidityHelpers} from "./base/LiquidityHelpers.sol";
 
-interface IWETH {
-    function deposit() external payable;
-    function approve(address spender, uint256 amount) external returns (bool);
-}
-
 contract CreatePoolAndAddLiquidityScript is BaseScript, LiquidityHelpers {
     using CurrencyLibrary for Currency;
+    using PoolIdLibrary for PoolKey;
 
-    /////////////////////////////////////
-    // --- Configure These ---
-    /////////////////////////////////////
-
-    uint24 lpFee = 3000; // 0.30%
+    uint24 lpFee = 500;
     int24 tickSpacing = 60;
-    uint160 startingPrice = 2 ** 96; // Starting price, sqrtPriceX96; floor(sqrt(1) * 2^96)
 
-    // --- liquidity position configuration --- //
-    uint256 public token0Amount = 1e15; // 100e18 before
-    uint256 public token1Amount = 1e6;  // 100e18 before
+    uint160 startingPrice = 433950517987477948943152178624; // ~3000 USDC / ETH
 
-    // range of the position, must be a multiple of tickSpacing
+    uint256 public token0Amount = 5e15; // 0.0001 ETH
+    uint256 public token1Amount = 15e6;  // 3 USDC
+
     int24 tickLower;
     int24 tickUpper;
-    /////////////////////////////////////
 
     function run() external {
         PoolKey memory poolKey = PoolKey({
@@ -43,14 +36,18 @@ contract CreatePoolAndAddLiquidityScript is BaseScript, LiquidityHelpers {
             hooks: hookContract
         });
 
-        bytes memory hookData = new bytes(0);
+        // 🔍 Compute and log PoolId
+        PoolId id = poolKey.toId();
+        console2.log("=== CREATE POOL SCRIPT POOL ID ===");
+        console2.logBytes32(PoolId.unwrap(id));
+
+        bytes memory hookData = "";
 
         int24 currentTick = TickMath.getTickAtSqrtPrice(startingPrice);
 
-        tickLower = truncateTickSpacing((currentTick - 750 * tickSpacing), tickSpacing);
-        tickUpper = truncateTickSpacing((currentTick + 750 * tickSpacing), tickSpacing);
+        tickLower = truncateTickSpacing(currentTick - 5000 * tickSpacing, tickSpacing);
+        tickUpper = truncateTickSpacing(currentTick + 5000 * tickSpacing, tickSpacing);
 
-        // Converts token amounts to liquidity units
         uint128 liquidity = LiquidityAmounts.getLiquidityForAmounts(
             startingPrice,
             TickMath.getSqrtPriceAtTick(tickLower),
@@ -59,37 +56,40 @@ contract CreatePoolAndAddLiquidityScript is BaseScript, LiquidityHelpers {
             token1Amount
         );
 
-        // slippage limits
         uint256 amount0Max = token0Amount + 1;
         uint256 amount1Max = token1Amount + 1;
 
-        (bytes memory actions, bytes[] memory mintParams) = _mintLiquidityParams(
-            poolKey, tickLower, tickUpper, liquidity, amount0Max, amount1Max, deployerAddress, hookData
-        );
+        (bytes memory actions, bytes[] memory mintParams) =
+            _mintLiquidityParams(
+                poolKey,
+                tickLower,
+                tickUpper,
+                liquidity,
+                amount0Max,
+                amount1Max,
+                deployerAddress,
+                hookData
+            );
 
-        // multicall parameters
         bytes[] memory params = new bytes[](2);
 
-        // Initialize Pool
-        params[0] = abi.encodeWithSelector(positionManager.initializePool.selector, poolKey, startingPrice, hookData);
-
-        // Mint Liquidity
-        params[1] = abi.encodeWithSelector(
-            positionManager.modifyLiquidities.selector, abi.encode(actions, mintParams), block.timestamp + 3600
+        params[0] = abi.encodeWithSelector(
+            positionManager.initializePool.selector,
+            poolKey,
+            startingPrice,
+            hookData
         );
 
-        // If the pool is an ETH pair, native tokens are to be transferred
+        params[1] = abi.encodeWithSelector(
+            positionManager.modifyLiquidities.selector,
+            abi.encode(actions, mintParams),
+            block.timestamp + 3600
+        );
+
         uint256 valueToPass = currency0.isAddressZero() ? amount0Max : 0;
 
         vm.startBroadcast();
         tokenApprovals();
-        // If token0 is WETH, wrap ETH first
-        if (address(token0) == 0xdd13E55209Fd76AfE204dBda4007C227904f0a81) {
-            IWETH(address(token0)).deposit{value: token0Amount}();
-        }
-        
-
-        // Multicall to atomically create pool & add liquidity
         positionManager.multicall{value: valueToPass}(params);
         vm.stopBroadcast();
     }

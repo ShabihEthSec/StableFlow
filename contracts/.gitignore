@@ -7,6 +7,9 @@ out/
 /broadcast/*/31337/
 /broadcast/*/5/
 /broadcast/**/dry-run/
+broadcast
+contracts/broadcast/**/run-*.json
+contracts/broadcast/**/run-latest.json
 
 # Docs
 docs/

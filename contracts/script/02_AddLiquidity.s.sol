@@ -23,13 +23,17 @@ contract AddLiquidityScript is BaseScript, LiquidityHelpers {
     int24 tickSpacing = 60;
 
     // --- liquidity position configuration --- //
-    uint256 public token0Amount = 1e18;
-    uint256 public token1Amount = 1e18;
+    uint256 public token0Amount = 1e17;
+    uint256 public token1Amount = 6e6;
 
     /////////////////////////////////////
 
     int24 tickLower;
     int24 tickUpper;
+
+    int24 constant MIN_TICK = TickMath.MIN_TICK;
+    int24 constant MAX_TICK = TickMath.MAX_TICK;
+
 
     function run() external {
         PoolKey memory poolKey = PoolKey({
@@ -45,8 +49,20 @@ contract AddLiquidityScript is BaseScript, LiquidityHelpers {
 
         int24 currentTick = TickMath.getTickAtSqrtPrice(sqrtPriceX96);
 
-        tickLower = truncateTickSpacing((currentTick - 1000 * tickSpacing), tickSpacing);
-        tickUpper = truncateTickSpacing((currentTick + 1000 * tickSpacing), tickSpacing);
+        int24 lower = currentTick - 100 * tickSpacing;
+        int24 upper = currentTick + 100 * tickSpacing;
+
+        // Clamp to Uniswap bounds
+        if (lower < MIN_TICK) {
+            lower = MIN_TICK;
+        }
+        if (upper > MAX_TICK) {
+            upper = MAX_TICK;
+        }
+
+        // Truncate to spacing
+        tickLower = truncateTickSpacing(MIN_TICK, tickSpacing);
+        tickUpper = truncateTickSpacing(MAX_TICK, tickSpacing);
 
         // Converts token amounts to liquidity units
         uint128 liquidity = LiquidityAmounts.getLiquidityForAmounts(
@@ -67,7 +83,7 @@ contract AddLiquidityScript is BaseScript, LiquidityHelpers {
 
         // multicall parameters
         bytes[] memory params = new bytes[](1);
-
+        require(liquidity > 0, "Computed liquidity is zero");
         // Mint Liquidity
         params[0] = abi.encodeWithSelector(
             positionManager.modifyLiquidities.selector, abi.encode(actions, mintParams), block.timestamp + 60

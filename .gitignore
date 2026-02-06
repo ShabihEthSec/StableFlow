@@ -1,0 +1,7 @@
+.env
+# Node
+node_modules/
+
+notes.md
+contracts/broadcast/**/run-*.json
+contracts/broadcast/**/run-latest.json
