@@ -31,7 +31,7 @@ contract StableFlowHook is BaseHook {
     
     /// @notice Minimum imbalance (in basis points) required to emit a rebalancing intent.
     /// @dev Lowered for testnet/demo conditions. Mainnet would use a higher value.
-    uint256 constant IMBALANCE_THRESHOLD_BPS = 10; // 0.1%
+    uint256 public constant IMBALANCE_THRESHOLD_BPS = 10; // 0.1%
 
      /// @notice Minimum time that must elapse between successive intents per pool.
     /// @dev Prevents intent spam and oscillation. Mainnet could use a longer cooldown.

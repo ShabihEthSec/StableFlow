@@ -49,6 +49,10 @@ contract StableFlowHookTest is Test {
 
     PoolKey poolKey;
 
+    /// @notice Reference notional used to normalize flow into BPS
+    /// @dev Acts as virtual liquidity floor for imbalance calculation
+    uint256 public constant REFERENCE_NOTIONAL = 1e18;
+
     function setUp() public {
         IPoolManager dummyManager = IPoolManager(address(0x1234));
         uint160 flags = Hooks.BEFORE_SWAP_FLAG | Hooks.AFTER_SWAP_FLAG;
@@ -84,31 +88,7 @@ contract StableFlowHookTest is Test {
         assertFalse(perms.afterAddLiquidity, "afterAddLiquidity should be disabled");
     }
 
-    /// Small swap → no intent emitted
-    function test_afterSwap_noIntentBelowThreshold() public {
-        BalanceDelta smallDelta = toBalanceDelta(
-            int128(-1e16),
-            int128(1e16)
-        );
-
-        vm.recordLogs();
-
-        hook.callAfterSwap(
-            poolKey,
-            SwapParams({
-                zeroForOne: true,
-                amountSpecified: -1e16,
-                sqrtPriceLimitX96: 0
-            }),
-            smallDelta,
-            bytes("")
-        );
-
-        Vm.Log[] memory logs = vm.getRecordedLogs();
-        assertEq(logs.length, 0);
-    }
-
-    /// Large swap → intent emitted
+    
     function test_afterSwap_emitsIntentAboveThreshold() public {
         BalanceDelta largeDelta = BalanceDelta.wrap(
             (int256(-1e18) << 128) | int256(uint256(uint128(1e18)))

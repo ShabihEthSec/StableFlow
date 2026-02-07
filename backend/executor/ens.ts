@@ -17,9 +17,10 @@ export async function resolveProtocolConfig(
   const hook = await resolver.getText("stableflow:hook");
   const threshold = await resolver.getText("stableflow:threshold:bps");
   const status = await resolver.getText("stableflow:status");
-  const executor = await resolver.getText("executor");
+  const executor = await resolver.getText("stableflow:executor");
   const mode = await resolver.getText("stableflow:mode");
   const chain = await resolver.getText("stableflow:chain");
+  const execution = await resolver.getText("stableflow:execution");
 
   return {
     hook,
@@ -28,5 +29,6 @@ export async function resolveProtocolConfig(
     executor: executor || "unknown",
     mode: mode || "unknown",
     chain: chain || "unknown",
+    execution: execution || "disabled",
   };
 }
