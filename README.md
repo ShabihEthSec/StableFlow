@@ -1,21 +1,22 @@
 # StableFlow 🚧
 
-**Status:** Active Development (Hackmoney Project)
+**Status:** Active Development (HackMoney Project)
 
-StableFlow is an intent-based, cross-chain stablecoin vault built around **Uniswap v4 hooks**.
-The project is developed in clearly defined phases, with the hook logic implemented first, followed by a minimal vault and an event-driven architecture.
+StableFlow is an **intent-based, cross-chain stablecoin system** built around **Uniswap v4 hooks**, with **ENS-governed execution** and **Arc-based settlement**.
 
-The core idea is simple and deliberate:
+The protocol is designed around a strict safety rule:
 
-> Hooks generate intent. Execution happens elsewhere.
+> **Hooks generate intent. Execution happens elsewhere.**
+
+This separation is intentional and fundamental.
 
 ---
 
 ## Current Progress
 
-### Phase 1 to Phase 3: Uniswap v4 Hook (COMPLETED)
+### Phase 1–3: Uniswap v4 Hook (COMPLETED)
 
-The core Uniswap v4 hook is fully implemented and tested.
+The core Uniswap v4 hook is fully implemented, deployed, and exercised on-chain.
 
 ### Implemented functionality
 
@@ -25,7 +26,7 @@ The core Uniswap v4 hook is fully implemented and tested.
 * Threshold-gated rebalancing intent emission
 * Cooldown-enforced intent rate limiting
 * Explicit caps on imbalance magnitude
-* Strict Uniswap v4 hook safety:
+* **Strict Uniswap v4 hook safety**
 
   * no external calls
   * deterministic execution
@@ -45,144 +46,206 @@ test/hooks/StableFlowHook.t.sol
 
 ---
 
-### On-chain Verification (Sepolia)
+## On-chain Verification (Sepolia)
+
+**StableFlowHook (Sepolia):**
+[https://sepolia.etherscan.io/address/0x6cbc5627c02c69302c2453ad8b7fb29fd91680c0](https://sepolia.etherscan.io/address/0x6cbc5627c02c69302c2453ad8b7fb29fd91680c0)
+
+### Active Pool
+
+Currently, StableFlow is exercised against **one Uniswap v4 pool**:
+
+* **Pair:** native ETH / USDC (Sepolia)
+* **PoolId:**
+
 ```
-StableFlowHook:
-0xeC1a67DeDA1574520C940736A1Ef31d8241E80C0
+0x7ed33865497eadd088abeb177a5b9d3e4976ead35f6c103b9679a53ad6971ae2
 ```
-#### Verfied PoolId(sepolia)
-0xf8591a339cba73a024246d7b1399e02d8b118826fc9861555fb1ea243691c95e
 
-The hook has been deployed and exercised on Sepolia via a live Uniswap v4 pool.
+### Execution characteristics
 
-Execution characteristics:
-
-* Hook functions are invoked via `delegatecall` from `PoolManager`
-* As expected for Uniswap v4, hooks do **not** appear as standalone transactions
+* Hook functions execute via `delegatecall` from `PoolManager`
+* Hooks do **not** appear as standalone transactions (expected Uniswap v4 behavior)
 * Correct execution is verified via:
-  * deterministic storage updates keyed by `poolId`
-  * event emission during swap execution
-  * post-swap state inspection using `cast call`
 
-Example (Sepolia):
+  * deterministic storage updates keyed by `poolId`
+  * event emission during swaps
+  * post-swap state inspection
+
+Example:
 
 ```bash
-cast call 0xeC1a67DeDA1574520C940736A1Ef31d8241E80C0 "lastFlowUpdate(bytes32)(uint256)" 0xf8591a339cba73a024246d7b1399e02d8b118826fc9861555fb1ea243691c95e
+cast call 0x6cbc5627c02c69302c2453ad8b7fb29fd91680c0 \
+  "lastFlowUpdate(bytes32)(uint256)" \
+  0x7ed33865497eadd088abeb177a5b9d3e4976ead35f6c103b9679a53ad6971ae2
 ```
+
 This confirms successful hook execution after swaps.
+
 ---
-
-
-
-### Network
-
-Current testing and validation has been performed on:
-
-* Sepolia testnet
-* Uniswap v4 PoolManager (official deployment on Sepolia)
-
 
 ## Why There Is No TWAP or Oracle Logic
 
-Uniswap v4 does not expose a standalone oracle contract like Uniswap v3, and hooks are not designed to compute or depend on price-based TWAPs.
+Uniswap v4 does **not** expose a standalone oracle contract like Uniswap v3, and hooks are **not designed** to compute or depend on price-based TWAPs.
 
-Instead of forcing oracle-style logic, StableFlow uses a v4-native approach:
+Instead of forcing oracle-style logic into hooks, StableFlow uses a **v4-native heuristic**:
 
-* Swap flow direction and magnitude from `BalanceDelta`
-* Time-windowed aggregation of net flow
-* Thresholds and cooldowns to prevent manipulation
-* Caps to bound extreme values
+### Flow-based heuristic design
 
-This produces a manipulation-resistant, deterministic signal that is compatible with Uniswap v4 constraints, cheap to compute, and safe inside hooks.
+* Net swap flow direction and magnitude from `BalanceDelta`
+* Time-windowed aggregation of swap pressure
+* Minimum thresholds to ignore noise
+* Cooldowns to prevent rapid re-triggering
+* Hard caps to bound worst-case behavior
 
-The hook never attempts to infer price. It only observes persistent liquidity pressure, which is sufficient for intent generation.
+### Why this is correct
+
+* Hooks remain **deterministic**
+* No external dependencies or async calls
+* No price inference inside the hook
+* Resistant to short-term manipulation
+* Cheap to compute and safe under Uniswap v4 constraints
+
+The hook does **not** attempt to infer price or fair value.
+It only observes **persistent liquidity pressure**, which is sufficient to generate a safe rebalancing **intent**, not an execution.
 
 ---
 
-## Phase 4: Vault Contract (COMPLETED)
+## ENS Control Plane (COMPLETED)
 
-A minimal **OpenZeppelin ERC-4626 vault** has been added to handle deposits and withdrawals.
+StableFlow uses **ENS as a live protocol control plane**, not as a vanity name.
 
-### Vault properties
+ENS directly governs executor behavior.
 
-* 1:1 share to asset ratio (initially)
-* Safe custody of USDC
-* No liquidity deployment
-* No hook interaction
-* No cross-chain logic
+### ENS name
 
-Core file:
+```
+stableflow-sepolia.eth
+```
+
+### ENS-controlled parameters
+
+Stored as ENS text records:
+
+* `stableflow:hook` → canonical hook address
+* `stableflow:threshold:bps` → intent emission threshold
+* `stableflow:status` → active / paused protocol switch
+* `stableflow:execution` → execution enable / disable
+* `stableflow:mode` → `demo` vs `live`
+* `stableflow:chain` → target execution chain
+* `stableflow:executor` → authorized executor address
+
+### What this enables
+
+* Hot configuration without redeployments
+* Executor authorization via ENS
+* Immediate pause / resume capability
+* Transparent, on-chain governance rules
+
+ENS is actively resolved by the executor on **every intent**.
+
+---
+
+## Arc Settlement Layer (COMPLETED)
+
+StableFlow uses **Arc** as the settlement and liquidity hub for executed intents.
+
+### StableFlowArcVault
+
+**Deployed on Arc Testnet:**
+[https://testnet.arcscan.app/address/0x5618F6541328ca1FdCf1838f1Bc4d3D14558E29f](https://testnet.arcscan.app/address/0x5618F6541328ca1FdCf1838f1Bc4d3D14558E29f)
+
+The Arc vault:
+
+* Holds USDC on Arc
+* Receives settlements from the executor
+* Acts as the canonical accounting endpoint for rebalances
+
+Core contract:
+
+```
+contracts/arc/StableFlowArcVault.sol
+```
+
+### What is proven
+
+* Off-chain executor consumes on-chain intents
+* Execution is gated by ENS configuration
+* Idempotency is enforced via execution registry
+* Settlement is finalized on Arc using USDC
+* Ethereum execution and Arc settlement are cleanly separated
+
+This satisfies the Arc bounty requirement:
+
+> *Treat multiple chains as one liquidity surface, using Arc as a liquidity hub.*
+
+---
+
+## Intent Execution Pipeline (COMPLETED)
+
+End-to-end flow:
+
+1. Swap occurs on Uniswap v4 (Sepolia)
+2. Hook observes persistent imbalance
+3. `RebalanceIntent` event is emitted
+4. Permissionless executor listens off-chain
+5. ENS config is resolved and enforced
+6. Execution is authorized
+7. Intent is marked executed on Ethereum
+8. Settlement is finalized on Arc
+
+This pipeline is fully operational and verifiable via on-chain transactions.
+
+---
+
+## Vault Note (ERC-4626)
+
+A minimal ERC-4626 vault exists in the repository as a **reference implementation**:
 
 ```
 contracts/vault/StableFlowVault.sol
 ```
 
-Tests:
+It is **not used** in the active execution path.
 
-```
-test/vault/StableFlowVault.t.sol
-```
+The live settlement and accounting layer is **StableFlowArcVault** on Arc.
 
 ---
 
-## Next Phase
+## Network
 
-### Phase 5: Intent to Executor Loop (In Progress)
+Validated on:
 
-Planned work:
-
-* Permissionless off-chain executor
-* Listen for `RebalanceIntent` events
-* Decode and log intent parameters
-* No LI.FI execution yet (simulation only)
-
-This phase validates the event-driven architecture without introducing async risk into the hook.
+* Ethereum Sepolia
+* Uniswap v4 PoolManager (Sepolia)
+* Arc Testnet (USDC-native gas)
 
 ---
 
-## Work in Progress
+## Work Remaining
 
-This repository is under active development:
+* Frontend (next phase)
+* Optional advanced accounting
 
-* Cross-chain execution via LI.FI is not yet wired
-* Unified accounting via Arc is not yet wired
-* Frontend is intentionally deferred
-
-This is not a production deployment.
-The goal is to demonstrate correct primitives, sound architecture, and safe protocol design in a hackathon context.
-
----
-
-## High-Level Architecture
-
-StableFlow cleanly separates:
-
-* On-chain intent generation using Uniswap v4 hooks
-* Off-chain asynchronous execution
-* Cross-chain routing
-* Unified accounting
-
-This separation is intentional and fundamental to safety.
+This repository focuses on **correct primitives, safe architecture, and working execution**, not UI polish.
 
 ---
 
 ## Note for Reviewers and Judges
 
-If you are reviewing this repository:
+To review this project:
 
 1. Start with `StableFlowHook.sol`
-2. Review the flow-based imbalance logic
-3. Review thresholding and cooldown enforcement
-4. Review the minimal ERC-4626 vault
-5. Note that execution layers are intentionally staged
-6. Note that Uniswap v4 hooks execute via `delegatecall` and therefore do not
-   appear as direct transactions on the hook address. Execution is proven
-   through state changes and emitted events.
+2. Review flow-based imbalance detection
+3. Review thresholding and cooldown logic
+4. Review ENS-governed execution control
+5. Review executor → Arc settlement flow
+6. Verify Arc `settleRebalance` transactions
 
-Each phase is built to be independently correct before moving forward.
+Each phase is independently correct and validated before advancing.
 
 ---
 
-*The flow will stabilize, one hook at a time.*
+*The flow stabilizes — one intent at a time.*
 
 ---
