@@ -1,16 +1,16 @@
-import { createPublicClient, http } from "viem";
-import { CONFIG } from "../config";
+// lib/arc.ts
+import { ethers } from "ethers";
 
-export const arcClient = createPublicClient({
-  transport: http(CONFIG.ARC.rpc),
-});
-
-export const ARC_VAULT_ABI = [
+export const arcProvider = new ethers.JsonRpcProvider(
+  process.env.NEXT_PUBLIC_ARC_RPC!,
   {
-    name: "totalUSDC",
-    type: "function",
-    stateMutability: "view",
-    inputs: [],
-    outputs: [{ type: "uint256" }],
-  },
-];
+    chainId: 5042002,
+    name: "arc-testnet",
+    ensAddress: undefined,
+  }
+);
+
+export async function getUSDCBalance(address: string) {
+  const balance = await arcProvider.getBalance(address);
+  return Number(ethers.formatUnits(balance, 18)); // USDC (Arc native token) = 18 decimals
+}

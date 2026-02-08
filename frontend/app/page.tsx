@@ -1,52 +1,43 @@
-"use client";
+import "./globals.css";
+import { ENSConfiguration } from "@/components/ENSConfiguration";
+import { ArcVaultStatus } from "@/components/ArcVaultStatus";
+import { IntentFeed } from "@/components/IntentFeed";
+import { NetworkIndicator } from "@/components/NetworkIndicator";
 
-import { useEffect, useState } from "react";
-import { arcClient, ARC_VAULT_ABI } from "../lib/arc";
-import { CONFIG } from "../config";
-
-export default function Home() {
-  const [balance, setBalance] = useState<string>("loading");
-
-  useEffect(() => {
-    async function load() {
-      const raw = await arcClient.readContract({
-        address: CONFIG.ARC.vault as `0x${string}`,
-        abi: ARC_VAULT_ABI,
-        functionName: "totalUSDC",
-      });
-
-      setBalance((Number(raw) / 1e6).toFixed(2));
-    }
-
-    load();
-  }, []);
-
+export default async function Page() {
   return (
-    <main style={{ padding: 32 }}>
-      <h1>💧 StableFlow</h1>
-      <p>ENS: {CONFIG.ENS_NAME}</p>
+    <main className="min-h-screen bg-[#09090b] text-white selection:bg-cyan-500/30 overflow-hidden">
+      {/* Background Mesh */}
+      <div className="fixed inset-0 z-0">
+        <div className="mesh-gradient absolute top-[-20%] left-[-10%] h-[700px] w-[700px] rounded-full bg-cyan-600/20" />
+        <div className="mesh-gradient absolute bottom-[-20%] right-[-10%] h-[700px] w-[700px] rounded-full bg-purple-600/10" />
+      </div>
 
-      <hr />
+      <div className="relative z-10 mx-auto max-w-7xl px-6 py-12 lg:px-8">
+        <header className="flex flex-col justify-between gap-8 md:flex-row md:items-end mb-20 px-2">
+          <div className="space-y-5">
+            <h1 className="text-7xl font-[1000] tracking-tighter logo-glow">
+              STABLE<span className="bg-gradient-to-b from-cyan-300 to-cyan-500 bg-clip-text text-transparent">FLOW</span>
+            </h1>
+            <p className="text-zinc-500 font-mono text-xs uppercase tracking-[0.3em] flex items-center gap-3">
+              <span className="h-[1px] w-8 bg-cyan-500/30" />
+              Cross-chain Intent Layer
+            </p>
+          </div>
+          <NetworkIndicator />
+        </header>
 
-      <h2>Arc Settlement</h2>
-      <p><strong>Arc Vault:</strong> {CONFIG.ARC.vault}</p>
-      <p><strong>USDC Balance:</strong> {balance}</p>
+        <div className="grid gap-8 lg:grid-cols-12">
+          <div className="lg:col-span-8 flex flex-col gap-8">
+            <ArcVaultStatus />
+            <ENSConfiguration />
+          </div>
 
-      <p>
-        <a
-          href={`https://testnet.arcscan.app/address/${CONFIG.ARC.vault}`}
-          target="_blank"
-        >
-          View on Arc Explorer →
-        </a>
-      </p>
-
-      <hr />
-
-      <p>
-        Rebalancing intents emitted on Sepolia are finalized
-        and settled on Arc using USDC.
-      </p>
+          <aside className="lg:col-span-4 max-h-[900px] overflow-hidden">
+            <IntentFeed />
+          </aside>
+        </div>
+      </div>
     </main>
   );
 }
